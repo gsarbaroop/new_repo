@@ -2,8 +2,8 @@ import sys, os
 import numpy as np
 from joblib import load
 
-from mlops.utils import get_all_h_param_comb, tune_and_save
-from sklearn import svm, metrics
+from mlops.utils import get_all_h_param_comb, tune_and_save, train_dev_test_split, preprocess_digits
+from sklearn import svm, metrics, datasets
 
 # test case to check if all the combinations of the hyper parameters are indeed getting created
 def test_get_h_param_comb():
@@ -88,36 +88,31 @@ def test_predicts_all():
 
     assert set(predicted) == set(y_test)
 
-# what more test cases should be there
-# irrespective of the changes to the refactored code.
+# test to check if the randomized state are same
+def test_check_random_state_equal():
+    train_frac, dev_frac, test_frac = 0.8, 0.1, 0.1
+    digits = datasets.load_digits()
+    data, label = preprocess_digits(digits)
+    x_t=[]
+    random_state = 0
+    for i in range(2):
+        x_train, y_train, x_dev, y_dev, x_test, y_test = train_dev_test_split(
+            data, label, train_frac, dev_frac, random_state)
+        x_t.append(y_train)
+    assert len(x_t[0]) == len(x_t[1])
 
-# train/dev/test split functionality : input 200 samples, fraction is 70:15:15, then op should have 140:30:30 samples in each set
-
-
-# preprocessing gives ouput that is consumable by model
-
-# accuracy check. if acc(model) < threshold, then must not be pushed.
-
-# hardware requirement test cases are difficult to write.
-# what is possible: (model size in execution) < max_memory_you_support
-
-# latency: tik; model(input); tok == time passed < threshold
-# this is dependent on the execution environment (as close the actual prod/runtime environment)
-
-
-# model variance? --
-# bias vs variance in ML ?
-# std([model(train_1), model(train_2), ..., model(train_k)]) < threshold
-
-
-# Data set we can verify, if it as desired
-# dimensionality of the data --
-
-# Verify output size, say if you want output in certain way
-# assert len(prediction_y) == len(test_y)
-
-# model persistance?
-# train the model -- check perf -- write the model to disk
-# is the model loaded from the disk same as what we had written?
-# assert acc(loaded_model) == expected_acc
-# assert predictions (loaded_model) == expected_prediction
+# test to check if the randomized state are same
+def test_check_random_state_not_equal():
+    train_frac, dev_frac, test_frac = 0.8, 0.1, 0.1
+    digits = datasets.load_digits()
+    data, label = preprocess_digits(digits)
+    x_t=[]
+    y_t=[]
+    random_state = 10
+    for i in range(2):
+        x_train, y_train, x_dev, y_dev, x_test, y_test = train_dev_test_split(
+            data, label, train_frac, dev_frac, random_state)
+        x_t.append(x_train)
+        y_t.append(y_train)
+    assert len(x_t[0]) == len(x_t[1])
+    assert len(y_t[0]) == len(y_t[1])

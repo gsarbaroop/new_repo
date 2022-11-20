@@ -1,9 +1,10 @@
 from flask import Flask
 from flask import request
 from joblib import load
+import os
 
 app = Flask(__name__)
-model_path = "svm_gamma=0.0005_C=2.joblib"
+model_path = r"./models/svm_gamma=0.001_C=0.2.joblib"
 model = load(model_path)
 
 @app.route("/")
@@ -24,10 +25,18 @@ def sum():
     return {'sum':z}
 
 
-
 @app.route("/predict", methods=['POST'])
 def predict_digit():
-    image = request.json['image']
-    print("done loading")
-    predicted = model.predict([image])
-    return {"y_predicted":int(predicted[0])}
+    lt=[]
+    if 'model_name' not in request.json:
+        for file in os.listdir(r"./results"):
+            f = open(r"./results/"+file,"r")
+            for st in f.read():
+                lt.append(st)
+        return {"file":lt}
+    else:
+        model_name = request.json['model_name']
+        image = request.json['image']
+        print("Predicting image")
+        predicted = model.predict([image])
+        return {"Number predicted":int(predicted[0])}

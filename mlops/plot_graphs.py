@@ -7,6 +7,7 @@
 # Import datasets, classifiers and performance metrics
 from sklearn import datasets, svm, metrics, tree
 import pdb
+import argparse
 
 from utils import (
     preprocess_digits,
@@ -17,6 +18,11 @@ from utils import (
     macro_f1
 )
 from joblib import dump, load
+
+parser = argparse.ArgumentParser(description = 'Input for classifier and random state')
+parser.add_argument('clf_name',type=str)
+parser.add_argument('random_state',type=int)
+args = parser.parse_args()
 
 train_frac, dev_frac, test_frac = 0.8, 0.1, 0.1
 assert train_frac + dev_frac + test_frac == 1.0
@@ -49,11 +55,11 @@ del digits
 metric_list = [metrics.accuracy_score, macro_f1]
 h_metric = metrics.accuracy_score
 
-n_cv = 5
+n_cv = 1
 results = {}
 for n in range(n_cv):
     x_train, y_train, x_dev, y_dev, x_test, y_test = train_dev_test_split(
-        data, label, train_frac, dev_frac
+        data, label, train_frac, dev_frac, args.random_state
     )
     # PART: Define the model
     # Create a classifier: a support vector classifier
@@ -61,28 +67,37 @@ for n in range(n_cv):
         "svm": svm.SVC(),
         "decision_tree": tree.DecisionTreeClassifier(),
     }
-    for clf_name in models_of_choice:
-        clf = models_of_choice[clf_name]
-        print("[{}] Running hyper param tuning for {}".format(n,clf_name))
-        actual_model_path = tune_and_save(
-            clf, x_train, y_train, x_dev, y_dev, h_metric, h_param_comb[clf_name], model_path=None
-        )
+    # for clf_name in models_of_choice:
 
-        # 2. load the best_model
-        best_model = load(actual_model_path)
+    clf = models_of_choice[args.clf_name]
+    print("[{}] Running hyper param tuning for {}".format(n,args.clf_name))
+    actual_model_path = tune_and_save(
+        clf, x_train, y_train, x_dev, y_dev, h_metric, h_param_comb[args.clf_name], model_path=None
+    )
 
-        # PART: Get test set predictions
-        # Predict the value of the digit on the test subset
-        predicted = best_model.predict(x_test)
-        if not clf_name in results:
-            results[clf_name]=[]    
+    # 2. load the best_model
+    best_model = load(r"../models/"+actual_model_path)
 
-        results[clf_name].append({m.__name__:m(y_pred=predicted, y_true=y_test) for m in metric_list})
-        # 4. report the test set accurancy with that best model.
-        # PART: Compute evaluation metrics
-        print(
-            f"Classification report for classifier {clf}:\n"
-            f"{metrics.classification_report(y_test, predicted)}\n"
-        )
+    # PART: Get test set predictions
+    # Predict the value of the digit on the test subset
+    predicted = best_model.predict(x_test)
+    if not args.clf_name in results:
+        results[args.clf_name]=[]    
 
+    results[args.clf_name].append({m.__name__:m(y_pred=predicted, y_true=y_test) for m in metric_list})
+
+    f = open(r"../results/"+actual_model_path+".txt","w+")
+    for s in results:
+        f.write("test accuracy: "+str(results[s][0]['accuracy_score'])+"\n")
+        f.write("test macro-f1: "+str(results[s][0]['macro_f1'])+"\n")
+        f.write("Model saved at: "+"./models/"+actual_model_path+"\n")
+    
+
+    # 4. report the test set accurancy with that best model.
+    # PART: Compute evaluation metrics
+    print(
+        f"Classification report for classifier {clf}:\n"
+        f"{metrics.classification_report(y_test, predicted)}\n"
+    )
+    f.close()
 print(results)
